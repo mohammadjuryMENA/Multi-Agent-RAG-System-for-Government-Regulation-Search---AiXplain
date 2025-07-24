@@ -1,4 +1,6 @@
 import os
+import requests
+from bs4 import BeautifulSoup
 from handlers.base import QueryHandler
 from vectorstore.vector_index import VectorIndex
 from tools.aixplain_tools import aixplain_embed
@@ -10,8 +12,27 @@ class UploadHandler(QueryHandler):
     def ingest(self, path_or_url: str) -> str:
         # Determine if input is a file or URL
         if path_or_url.startswith('http://') or path_or_url.startswith('https://'):
-            text = self._extract_from_url(path_or_url)
-            doc_name = path_or_url
+            try:
+                resp = requests.get(path_or_url, timeout=10)
+                resp.raise_for_status()
+                soup = BeautifulSoup(resp.text, 'html.parser')
+                # Extract visible text from paragraphs and headings
+                texts = []
+                for tag in soup.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p']):
+                    txt = tag.get_text(strip=True)
+                    if txt:
+                        texts.append(txt)
+                content = '\n'.join(texts)
+                if not content:
+                    content = soup.get_text(separator='\n', strip=True)
+                # Save to a temp file for downstream processing
+                import tempfile
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.txt', mode='w', encoding='utf-8') as tmp_file:
+                    tmp_file.write(content)
+                    tmp_path = tmp_file.name
+                return f"URL content extracted and saved to {tmp_path}"
+            except Exception as e:
+                return f"[Error] Failed to extract URL content: {e}"
         else:
             if not os.path.exists(path_or_url):
                 return f"Error: File not found: {path_or_url}"

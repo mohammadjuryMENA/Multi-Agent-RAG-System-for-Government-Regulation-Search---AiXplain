@@ -26,17 +26,22 @@ except ImportError:
     SlackNotifier = None
 
 class RAGAgent:
-    def __init__(self, commercial_code_file: str = "data/commercial_code.json"):
+    def __init__(self, commercial_code_file: str = "data/commercial_code.json", slack_token=None, slack_channel=None):
         self.index = VectorIndex()
         self.sections = []
         if commercial_code_file and os.path.exists(commercial_code_file):
             self.load_commercial_code_json(commercial_code_file)
         # Slack integration
-        slack_token = os.environ.get("SLACK_TOKEN")
-        slack_channel = os.environ.get("SLACK_CHANNEL")
+        if not slack_token:
+            slack_token = os.environ.get("SLACK_TOKEN")
+        if not slack_channel:
+            slack_channel = os.environ.get("SLACK_CHANNEL")
         self.notifier = None
         if SlackNotifier and slack_token and slack_channel:
             self.notifier = SlackNotifier(slack_token, slack_channel)
+        print("Slack token in RAGAgent:", slack_token)
+        print("Slack channel in RAGAgent:", slack_channel)
+        print("Notifier initialized in RAGAgent:", self.notifier is not None)
     def embed(self, text):
         vec = aixplain_embed(text)
         if vec:
@@ -77,6 +82,10 @@ class RAGAgent:
         return None
     def handle_query(self, query: str) -> str:
         try:
+            def post_to_slack(text):
+                print("Posting to Slack:", text)
+                if self.notifier:
+                    self.notifier.send_message(text)
             result = None
             q = query.lower()
             if any(x in q for x in ["executive order", "federal register", "regulation", "notices", "clean air act", "public comments", "department of transportation", "scheduled to take effect", "amendment"]):
@@ -97,8 +106,7 @@ class RAGAgent:
                 resp = query_federal_register_api(query, from_date, to_date, agency, doc_type, per_page=1)
                 summary = aixplain_summarize(resp) or resp
                 result = summary.strip()
-                if self.notifier:
-                    self.notifier.send_message(f"Query: {query}\nResponse: {result}")
+                post_to_slack(f"Query: {query}\nResponse: {result}")
                 return result
             if any(x in q for x in ["court", "case", "sued", "precedent", "litigation", "supreme court", "outcome", "v.", "amendment", "section 230", "patriot act", "fair use", "roommates.com", "fourth amendment"]):
                 party = None
@@ -121,15 +129,13 @@ class RAGAgent:
                 resp = query_caselaw_api(query, statute=statute, party=party, keyword=keyword, per_page=1)
                 summary = aixplain_summarize(resp) or resp
                 result = summary.strip()
-                if self.notifier:
-                    self.notifier.send_message(f"Query: {query}\nResponse: {result}")
+                post_to_slack(f"Query: {query}\nResponse: {result}")
                 return result
             entry = self.search_commercial_code(query)
             if entry:
                 summary = aixplain_summarize(entry['text']) or entry['text'][:300]
                 result = summary.strip()
-                if self.notifier:
-                    self.notifier.send_message(f"Query: {query}\nResponse: {result}")
+                post_to_slack(f"Query: {query}\nResponse: {result}")
                 return result
             embedding = self.embed(query)
             retrieved = self.index.query(query, embedding, top_k=1)
@@ -137,8 +143,7 @@ class RAGAgent:
                 context = retrieved[0]
                 summary = aixplain_summarize(context) or context
                 result = summary.strip()
-                if self.notifier:
-                    self.notifier.send_message(f"Query: {query}\nResponse: {result}")
+                post_to_slack(f"Query: {query}\nResponse: {result}")
                 return result
             # Dynamic conversational fallback
             if len(query.strip().split()) <= 3:
@@ -147,11 +152,9 @@ class RAGAgent:
                 result = f"That's a great question! I couldn't find a direct answer, but let's explore it together: '{query.strip()}'"
             else:
                 result = f"I couldn't find relevant information for: '{query.strip()}'. Could you clarify or ask in a different way?"
-            if self.notifier:
-                self.notifier.send_message(f"Query: {query}\nResponse: {result}")
+            post_to_slack(f"Query: {query}\nResponse: {result}")
             return result
         except Exception as e:
             result = f"[Error] {e}"
-            if self.notifier:
-                self.notifier.send_message(f"Query: {query}\nResponse: {result}")
+            post_to_slack(f"Query: {query}\nResponse: {result}")
             return result 
