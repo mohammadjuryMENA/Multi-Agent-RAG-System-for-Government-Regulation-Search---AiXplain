@@ -1,3 +1,7 @@
+"""
+Main CLI entry point for the Multi-Agent RAG System for Government Regulation Search.
+Handles user interaction, agent setup, Slack integration, and command routing.
+"""
 from aixplain.factories import AgentFactory, TeamAgentFactory, IndexFactory
 from rich.console import Console
 import requests
@@ -12,6 +16,9 @@ try:
     from slack_sdk import WebClient
     from slack_sdk.errors import SlackApiError
     class SlackNotifier:
+        """
+        Sends messages to a Slack channel using a bot token.
+        """
         def __init__(self, token: str, channel: str):
             self.client = WebClient(token=token)
             self.channel = channel
@@ -25,6 +32,10 @@ except ImportError:
 
 # --- Tool Functions ---
 def federal_register_tool(query):
+    """
+    Query the Federal Register API for the latest document matching the query.
+    Returns a summary string or error message.
+    """
     url = "https://www.federalregister.gov/api/v1/documents.json"
     params = {"per_page": 1, "order": "newest", "conditions[term]": query}
     try:
@@ -43,6 +54,9 @@ def federal_register_tool(query):
         return f"Federal Register: Error fetching data: {e}"
 
 def courtlistener_tool(query):
+    """
+    (Deprecated) Query the CourtListener API for a relevant opinion. Kept for reference.
+    """
     import time
     url = "https://www.courtlistener.com/api/rest/v3/opinions/"
     params = {"search": query, "page_size": 1}
@@ -100,6 +114,9 @@ def courtlistener_tool(query):
 
 # --- Index and Agent Setup ---
 def get_index_by_name(index_name, retries=5, delay=2):
+    """
+    Utility to find an index by name, with retries.
+    """
     from time import sleep
     for attempt in range(retries):
         indexes = IndexFactory.list()
@@ -112,6 +129,7 @@ def get_index_by_name(index_name, retries=5, delay=2):
     print(f"[ERROR] Index '{index_name}' not found after {retries} retries.")
     return None
 
+# Create agents for each regulation domain
 vehicle_code_index = get_index_by_name("Vehicle Code Index")
 epa_index = get_index_by_name("EPA Index")
 
@@ -136,10 +154,16 @@ team_agent = TeamAgentFactory.create(
 
 # --- Command Pattern Implementation ---
 class QueryCommand:
+    """
+    Abstract base class for all query commands.
+    """
     def execute(self, query, console):
         raise NotImplementedError
 
 class CommercialCodeCommand(QueryCommand):
+    """
+    Command for querying the Commercial Code agent.
+    """
     def __init__(self, agent):
         self.agent = agent
     def execute(self, query, console):
@@ -148,6 +172,9 @@ class CommercialCodeCommand(QueryCommand):
         return response['data']['output']
 
 class EPACommand(QueryCommand):
+    """
+    Command for querying the EPA agent.
+    """
     def __init__(self, agent):
         self.agent = agent
     def execute(self, query, console):
@@ -156,22 +183,32 @@ class EPACommand(QueryCommand):
         return response['data']['output']
 
 class FederalRegisterCommand(QueryCommand):
+    """
+    Command for querying the Federal Register tool.
+    """
     def execute(self, query, console):
         result = federal_register_tool(query)
         console.print(f"[green]Federal Register Tool response:[/green]\n{result}")
         return result
 
-class CourtListenerCommand(QueryCommand):
+class CAPCommand(QueryCommand):
+    """
+    Command for querying the CAP (case law) handler via the facade.
+    """
+    def __init__(self, facade):
+        self.facade = facade
     def execute(self, query, console):
-        result = courtlistener_tool(query)
-        console.print(f"[green]CourtListener Tool response:[/green]\n{result}")
+        result = self.facade.handle_query("case law: " + query)
+        console.print(f"[green]Case Law Tool response:[/green]\n{result}")
         return result
 
 # --- Main Application ---
 def main():
+    """
+    Main CLI loop for user interaction, command routing, and Slack notification.
+    """
     print("Slack token:", os.environ.get("SLACK_TOKEN"))
     print("Slack channel:", os.environ.get("SLACK_CHANNEL"))
-    # The facade will print if notifier is initialized
     console = Console()
     facade = PolicyNavigatorFacade()  # Facade provides a unified interface to all agents/tools
     console.print("[bold green]Welcome to the Agentic RAG System![/bold green]")
@@ -183,16 +220,17 @@ def main():
     if SlackNotifier and slack_token and slack_channel:
         slack_notifier = SlackNotifier(slack_token, slack_channel)
 
-    # Command registry
+    # Command registry for menu options
     commands = {
         "1": CommercialCodeCommand(vehicle_code_agent),
         "2": EPACommand(epa_agent),
         "3": FederalRegisterCommand(),
-        "4": CourtListenerCommand(),
+        "4": CAPCommand(facade),
     }
 
     while True:
-        console.print("\n[bold yellow]Select query type:[/bold yellow]\n1. Commercial Code\n2. EPA\n3. Federal Register\n4. CourtListener\n5. Exit")
+        # Show menu and get user choice
+        console.print("\n[bold yellow]Select query type:[/bold yellow]\n1. Commercial Code\n2. EPA\n3. Federal Register\n4. Case Law\n5. Exit")
         choice = console.input("[bold blue]Enter choice (1-5): [/bold blue]")
         if choice == "5" or choice.lower() == "exit":
             break

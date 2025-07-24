@@ -1,3 +1,7 @@
+"""
+Streamlit UI for the Multi-Agent RAG System for Government Regulation Search.
+Allows users to upload documents, specify URLs, and query multiple agents/tools.
+"""
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -11,6 +15,9 @@ try:
     from slack_sdk import WebClient
     from slack_sdk.errors import SlackApiError
     class SlackNotifier:
+        """
+        Sends messages to a Slack channel using a bot token.
+        """
         def __init__(self, token: str, channel: str):
             self.client = WebClient(token=token)
             self.channel = channel
@@ -22,9 +29,11 @@ try:
 except ImportError:
     SlackNotifier = None
 
-st.set_page_config(page_title="Policy Navigator Agent", layout="centered")
-st.title("Policy Navigator Agent")
+# --- Streamlit Page Setup ---
+st.set_page_config(page_title="Multi-Agent RAG System for Government Regulation Search", layout="centered")
+st.title("Multi-Agent RAG System for Government Regulation Search")
 
+# --- Facade and Slack Setup ---
 slack_token = os.environ.get("SLACK_TOKEN")
 slack_channel = os.environ.get("SLACK_CHANNEL")
 facade = PolicyNavigatorFacade(slack_token=slack_token, slack_channel=slack_channel)
@@ -34,20 +43,19 @@ slack_notifier = None
 if SlackNotifier and slack_token and slack_channel:
     slack_notifier = SlackNotifier(slack_token, slack_channel)
 
-# Sidebar for query type selection
+# --- Sidebar: Query Type Selection and Upload ---
 query_type = st.sidebar.selectbox(
     "Select query type:",
     [
         "Commercial Code",
         "EPA",
         "Federal Register",
-        "CourtListener",
+        "Case Law",
         "Uploaded Documents"
     ]
 )
 
 st.sidebar.markdown("---")
-# Upload document section
 st.sidebar.header("Upload Document or Specify URL")
 # Allow multiple file uploads
 uploaded_files = st.sidebar.file_uploader("Choose files (PDF, TXT)", type=["pdf", "txt"], accept_multiple_files=True)
@@ -74,11 +82,12 @@ if st.sidebar.button("Ingest Document/URL"):
 
 st.markdown("---")
 
-# Main query input
+# --- Main Query Input and Response ---
 st.header(f"Ask a question about {query_type}")
 user_query = st.text_area("Enter your question:")
 if st.button("Submit Query"):
     result = None
+    # Route query to the appropriate agent/tool
     if query_type == "Commercial Code":
         result = facade.handle_query("commercial code: " + user_query)
         st.success(result)
@@ -88,8 +97,8 @@ if st.button("Submit Query"):
     elif query_type == "Federal Register":
         result = facade.handle_query("federal register: " + user_query)
         st.success(result)
-    elif query_type == "CourtListener":
-        result = facade.handle_query("court: " + user_query)
+    elif query_type == "Case Law":
+        result = facade.handle_query("case law: " + user_query)
         st.success(result)
     elif query_type == "Uploaded Documents":
         handler = UploadedDocHandler()

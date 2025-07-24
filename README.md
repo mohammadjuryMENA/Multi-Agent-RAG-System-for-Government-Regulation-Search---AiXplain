@@ -9,7 +9,7 @@ An Agentic Retrieval-Augmented Generation (RAG) system for querying and extracti
 This project implements a multi-agent RAG system that:
 - Answers user queries about government regulations, legal codes, and public health policies.
 - Retrieves, summarizes, and analyzes information from multiple sources (datasets, APIs, uploaded documents).
-- Integrates with external APIs (e.g., Federal Register, CourtListener) and custom tools for advanced search and summarization.
+- Integrates with external APIs (e.g., Federal Register, Harvard Caselaw Access Project) and custom tools for advanced search and summarization.
 - Supports extensible agent and tool architecture for future enhancements.
 
 ---
@@ -29,7 +29,7 @@ This project implements a multi-agent RAG system that:
    - Copy `.env.example` to `.env` and fill in your API keys and tokens, or set them directly in your environment:
      - `SLACK_TOKEN` (optional, for Slack notifications)
      - `SLACK_CHANNEL` (optional)
-     - `COURTLISTENER_API_TOKEN` (for CourtListener API)
+     - `CAP_API_KEY` (required for Harvard Caselaw Access Project API, get one at https://case.law/api-key/)
      - Any other required keys (see `config.py`)
 4. **Run the main app:**
    ```bash
@@ -47,7 +47,7 @@ This project implements a multi-agent RAG system that:
 - **Commercial Code:** [Link](https://leginfo.legislature.ca.gov/faces/codesTOCSelected.xhtml?tocCode=COM&tocTitle=+Commercial+Code+-+COM)
 - **EPA Regulations:** [EPA Official Site](https://www.epa.gov/laws-regulations)
 - **Federal Register:** [API Docs](https://www.federalregister.gov/developers/documentation/api/v1)
-- **CourtListener:** [API Docs](https://www.courtlistener.com/api/rest-info/)
+- **Case Law (Harvard Caselaw Access Project):** [API Docs](https://case.law/api/) ([Get API Key](https://case.law/api-key/))
 - **Upload Your Own Documents:** Supports PDF, TXT, and (future) DOCX files.
 
 ---
@@ -59,7 +59,7 @@ This project implements a multi-agent RAG system that:
   - Document parser and vector indexer for fast semantic search.
   - Handlers for ingesting and querying uploaded documents.
 - **External APIs:**
-  - Federal Register and CourtListener APIs are integrated via Adapter-pattern handlers. Set API tokens in your environment.
+  - Federal Register and Harvard Caselaw Access Project (CAP) APIs are integrated via Adapter-pattern handlers. Set API tokens in your environment. **CAP_API_KEY is required.**
 - **Adding New Tools/Agents:**
   - Implement a new handler class (see `handlers/`), register it in the main app or facade, and add to the CLI or UI.
 
@@ -103,16 +103,16 @@ Federal Register Tool response:
 Title: ... (summary and publication date)
 ```
 
-### Example 4: CourtListener
+### Example 4: Case Law (Harvard CAP)
 **Input:**
 ```
-4  # (Select CourtListener)
-Case law on Section 230
+4  # (Select Case Law)
+Miranda rights
 ```
 **Output:**
 ```
-CourtListener Tool response:
-CaseName (Citation): Summary...
+Case Law Tool response:
+Miranda v. Arizona (384 U.S. 436, Supreme Court, 1966): ... (summary)
 ```
 
 ### Example 5: Uploading Multiple Documents
@@ -152,4 +152,4 @@ Uploaded Documents Agent response:
 - [Commercial Code](https://leginfo.legislature.ca.gov/faces/codesTOCSelected.xhtml?tocCode=COM&tocTitle=+Commercial+Code+-+COM)
 - [EPA Laws & Regulations](https://www.epa.gov/laws-regulations)
 - [Federal Register API](https://www.federalregister.gov/developers/documentation/api/v1)
-- [CourtListener API](https://www.courtlistener.com/api/rest-info/) 
+- [Harvard Caselaw Access Project API](https://case.law/api/) 
