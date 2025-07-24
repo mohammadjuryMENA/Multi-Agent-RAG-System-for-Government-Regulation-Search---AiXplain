@@ -7,6 +7,22 @@ load_dotenv()
 import os
 from facade import PolicyNavigatorFacade
 
+# --- Slack Integration ---
+try:
+    from slack_sdk import WebClient
+    from slack_sdk.errors import SlackApiError
+    class SlackNotifier:
+        def __init__(self, token: str, channel: str):
+            self.client = WebClient(token=token)
+            self.channel = channel
+        def send_message(self, text: str):
+            try:
+                self.client.chat_postMessage(channel=self.channel, text=text)
+            except SlackApiError as e:
+                print(f"Slack API error: {e.response['error']}")
+except ImportError:
+    SlackNotifier = None
+
 # --- Tool Functions ---
 def federal_register_tool(query):
     url = "https://www.federalregister.gov/api/v1/documents.json"
@@ -129,6 +145,7 @@ class CommercialCodeCommand(QueryCommand):
     def execute(self, query, console):
         response = self.agent.run(query)
         console.print(f"[green]Commercial Code Agent response:[/green]\n{response['data']['output']}")
+        return response['data']['output']
 
 class EPACommand(QueryCommand):
     def __init__(self, agent):
@@ -136,16 +153,19 @@ class EPACommand(QueryCommand):
     def execute(self, query, console):
         response = self.agent.run(query)
         console.print(f"[green]EPA Agent response:[/green]\n{response['data']['output']}")
+        return response['data']['output']
 
 class FederalRegisterCommand(QueryCommand):
     def execute(self, query, console):
         result = federal_register_tool(query)
         console.print(f"[green]Federal Register Tool response:[/green]\n{result}")
+        return result
 
 class CourtListenerCommand(QueryCommand):
     def execute(self, query, console):
         result = courtlistener_tool(query)
         console.print(f"[green]CourtListener Tool response:[/green]\n{result}")
+        return result
 
 # --- Main Application ---
 def main():
@@ -155,6 +175,13 @@ def main():
     console = Console()
     facade = PolicyNavigatorFacade()  # Facade provides a unified interface to all agents/tools
     console.print("[bold green]Welcome to the Agentic RAG System![/bold green]")
+
+    # Initialize SlackNotifier if configured
+    slack_notifier = None
+    slack_token = os.environ.get("SLACK_TOKEN")
+    slack_channel = os.environ.get("SLACK_CHANNEL")
+    if SlackNotifier and slack_token and slack_channel:
+        slack_notifier = SlackNotifier(slack_token, slack_channel)
 
     # Command registry
     commands = {
@@ -174,7 +201,13 @@ def main():
             continue
         query = console.input("[bold blue]Enter your query: [/bold blue]")
         try:
-            commands[choice].execute(query, console)
+            response = commands[choice].execute(query, console)
+            # Post to Slack if configured
+            if slack_notifier:
+                try:
+                    slack_notifier.send_message(f"Query: {query}\nResponse: {response}")
+                except Exception as e:
+                    console.print(f"[yellow]Warning: Failed to post to Slack: {e}[/yellow]")
         except Exception as e:
             console.print(f"[red]Error: {e}[/red]")
 

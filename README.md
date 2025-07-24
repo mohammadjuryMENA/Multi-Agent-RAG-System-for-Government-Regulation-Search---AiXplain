@@ -38,7 +38,7 @@ This project implements a multi-agent RAG system that:
 
 ---
 
-## �� Data Sources
+## 📚 Data Sources
 
 - **Commercial Code:** [Link](https://leginfo.legislature.ca.gov/faces/codesTOCSelected.xhtml?tocCode=COM&tocTitle=+Commercial+Code+-+COM)
 - **EPA Regulations:** [EPA Official Site](https://www.epa.gov/laws-regulations)
@@ -61,19 +61,37 @@ This project implements a multi-agent RAG system that:
 
 ---
 
+## 🔔 Slack Integration
+
+This agent can post every query and its response to a Slack channel for monitoring or collaboration.
+
+### How to Enable
+
+1. **Create a Slack App** and get a Bot Token (`SLACK_TOKEN`).
+2. **Invite the bot** to your desired channel and get the channel ID (`SLACK_CHANNEL`).
+3. **Set these environment variables** in your `.env` file:
+   ```
+   SLACK_TOKEN=xoxb-...
+   SLACK_CHANNEL=C12345678
+   ```
+4. When you run the agent, every query and its response will be posted to the specified Slack channel (if configured).
+
+### Example Slack Message
+
+```
+Query: What are the penalties for issuing a bad check?
+Response: Section 3310: ... (summary of penalties)
+```
+
+---
+
 ## 💡 Example Inputs & Outputs
 
 ### Example 1: Querying Commercial Code
 **Input:**
 ```
 1  # (Select Commercial Code)
-Future Improvements Section in README
-Suggest enhancements like:
-Adding more agents (e.g., summarization or analytics)
-UI improvements
-Additional data integrations
-Caching or memory features
-
+What are the penalties for issuing a bad check?
 ```
 **Output:**
 ```
