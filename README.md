@@ -47,7 +47,7 @@ This project implements a multi-agent RAG system that:
 - **Commercial Code:** [Link](https://leginfo.legislature.ca.gov/faces/codesTOCSelected.xhtml?tocCode=COM&tocTitle=+Commercial+Code+-+COM)
 - **EPA Regulations:** [EPA Official Site](https://www.epa.gov/laws-regulations)
 - **Federal Register:** [API Docs](https://www.federalregister.gov/developers/documentation/api/v1)
-- **Case Law (Harvard Caselaw Access Project):** [API Docs](https://case.law/api/) ([Get API Key](https://case.law/api-key/))
+- **Case Law (Harvard Caselaw Access Project):** [API Docs](https://case.law/)
 - **Upload Your Own Documents:** Supports PDF, TXT, and (future) DOCX files.
 
 ---
