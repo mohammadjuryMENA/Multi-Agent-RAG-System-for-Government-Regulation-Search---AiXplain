@@ -1,13 +1,24 @@
 from handlers.base import QueryHandler
 import requests
+import os
 
-# Adapter for the CourtListener API
+# Adapter for the CourtListener API (Adapter pattern)
 class CourtListenerHandler(QueryHandler):
+    """
+    Handles queries to the CourtListener API.
+    Implements the Adapter pattern to unify the interface for query handling.
+    """
     API_URL = "https://www.courtlistener.com/api/rest/v3/opinions/"
-    API_TOKEN = "b84fd8d15e3969573f5f1de7ced3f88288e70c95"  # Move to config for production
+    API_TOKEN = os.environ.get("COURTLISTENER_API_TOKEN", "")  # Use env variable for token
 
     def run(self, query: str) -> str:
-        # Query the CourtListener API for up to 5 relevant opinions
+        """
+        Query the CourtListener API for up to 5 relevant opinions.
+        Args:
+            query (str): The user's query.
+        Returns:
+            str: Summaries of relevant court opinions.
+        """
         params = {"search": query, "page_size": 5}
         headers = {'Authorization': f'Token {self.API_TOKEN}'}
         resp = requests.get(self.API_URL, params=params, headers=headers, timeout=30)
@@ -37,7 +48,11 @@ class CourtListenerHandler(QueryHandler):
                     paragraphs = [p.strip() for p in plain_text.split('\n') if p.strip()]
                     summary = None
                     for p in paragraphs:
-                        if len(p) > 40 and not p.lower().startswith(('filed', 'court', 'state of', 'appeal', 'supreme', 'district', 'county', 'judge', 'panel', 'date', 'before', 'argued', 'decided', 'counsel', 'attorney', 'prosecutor', 'defendant', 'plaintiff', 'appellant', 'appellee', 'respondent', 'petitioner', 'brief', 'syllabus', 'headnote')):
+                        if len(p) > 40 and not p.lower().startswith((
+                            'filed', 'court', 'state of', 'appeal', 'supreme', 'district', 'county', 'judge',
+                            'panel', 'date', 'before', 'argued', 'decided', 'counsel', 'attorney', 'prosecutor',
+                            'defendant', 'plaintiff', 'appellant', 'appellee', 'respondent', 'petitioner', 'brief',
+                            'syllabus', 'headnote')):
                             summary = p
                             break
                     if not summary:

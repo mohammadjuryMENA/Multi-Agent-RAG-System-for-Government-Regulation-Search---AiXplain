@@ -4,12 +4,42 @@ from bs4 import BeautifulSoup
 from handlers.base import QueryHandler
 from vectorstore.vector_index import VectorIndex
 from tools.aixplain_tools import aixplain_embed
+from typing import Optional
 
-# Global index for uploaded documents
-UPLOAD_INDEX = VectorIndex()
+# Singleton for the global upload index
+class UploadIndexSingleton:
+    """
+    Singleton for the global vector index used for uploaded documents.
+    """
+    _instance: Optional[VectorIndex] = None
 
+    @classmethod
+    def get_instance(cls) -> VectorIndex:
+        if cls._instance is None:
+            cls._instance = VectorIndex()
+        return cls._instance
+
+# Handler for uploading and ingesting documents (Strategy/Adapter pattern)
 class UploadHandler(QueryHandler):
+    """
+    Handles ingestion of documents (file or URL) and adds them to the global vector index.
+    Implements the Strategy and Adapter patterns for extensibility and API integration.
+    """
+    def __init__(self, upload_index: Optional[VectorIndex] = None):
+        """
+        Args:
+            upload_index (Optional[VectorIndex]): Injected vector index for uploaded documents. Defaults to singleton.
+        """
+        self.upload_index = upload_index or UploadIndexSingleton.get_instance()
+
     def ingest(self, path_or_url: str) -> str:
+        """
+        Ingests a document from a file path or URL, extracts text, and adds it to the vector index.
+        Args:
+            path_or_url (str): File path or URL to ingest.
+        Returns:
+            str: Status message.
+        """
         # Determine if input is a file or URL
         if path_or_url.startswith('http://') or path_or_url.startswith('https://'):
             try:
@@ -51,10 +81,19 @@ class UploadHandler(QueryHandler):
             # Add document name and chunk number for source reference
             chunk_with_source = f"[{doc_name} - chunk {i+1}]:\n{chunk}"
             embedding = aixplain_embed(chunk_with_source)
-            UPLOAD_INDEX.add_document(chunk_with_source, embedding)
+            self.upload_index.add_document(chunk_with_source, embedding)
         return f"Successfully ingested and indexed document: {doc_name} (chunks: {len(chunks)})"
 
     def _extract_from_file(self, file_path: str) -> str:
+        """
+        Extracts text from a file based on its extension.
+        Args:
+            file_path (str): Path to the file.
+        Returns:
+            str: Extracted text.
+        Raises:
+            ValueError: If file type is unsupported.
+        """
         ext = os.path.splitext(file_path)[1].lower()
         if ext == '.pdf':
             return self._extract_pdf(file_path)
@@ -66,6 +105,16 @@ class UploadHandler(QueryHandler):
             raise ValueError(f"Unsupported file type: {ext}")
 
     def _extract_pdf(self, file_path: str) -> str:
+        """
+        Extracts text from a PDF file using pdfplumber.
+        Args:
+            file_path (str): Path to the PDF file.
+        Returns:
+            str: Extracted text.
+        Raises:
+            ImportError: If pdfplumber is not installed.
+            ValueError: If no extractable text is found.
+        """
         try:
             import pdfplumber
         except ImportError:
@@ -79,17 +128,44 @@ class UploadHandler(QueryHandler):
         return text
 
     def _extract_docx(self, file_path: str) -> str:
+        """
+        Extracts text from a DOCX file. (Not implemented)
+        Args:
+            file_path (str): Path to the DOCX file.
+        Returns:
+            str: Extracted text or not implemented message.
+        """
         # TODO: Use python-docx to extract text
         return "[DOCX extraction not implemented]"
 
     def _extract_txt(self, file_path: str) -> str:
+        """
+        Extracts text from a TXT file.
+        Args:
+            file_path (str): Path to the TXT file.
+        Returns:
+            str: Extracted text.
+        """
         with open(file_path, 'r', encoding='utf-8') as f:
             return f.read()
 
     def _extract_from_url(self, url: str) -> str:
+        """
+        Extracts text from a URL. (Not implemented)
+        Args:
+            url (str): The URL to extract from.
+        Returns:
+            str: Not implemented message.
+        """
         # TODO: Use newspaper3k or requests+BeautifulSoup for extraction
         return "[URL extraction not implemented]"
 
     def run(self, query: str) -> str:
-        # Not used for upload handler
+        """
+        Not used for upload handler.
+        Args:
+            query (str): The user's query.
+        Returns:
+            str: Not supported message.
+        """
         return "[UploadHandler does not support run()]" 

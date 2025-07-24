@@ -7,6 +7,7 @@ load_dotenv()
 import os
 from facade import PolicyNavigatorFacade
 
+# --- Tool Functions ---
 def federal_register_tool(query):
     url = "https://www.federalregister.gov/api/v1/documents.json"
     params = {"per_page": 1, "order": "newest", "conditions[term]": query}
@@ -24,6 +25,7 @@ def federal_register_tool(query):
             return "No relevant federal register documents found."
     except Exception as e:
         return f"Federal Register: Error fetching data: {e}"
+
 def courtlistener_tool(query):
     import time
     url = "https://www.courtlistener.com/api/rest/v3/opinions/"
@@ -57,7 +59,11 @@ def courtlistener_tool(query):
                         paragraphs = [p.strip() for p in plain_text.split('\n') if p.strip()]
                         summary = None
                         for p in paragraphs:
-                            if len(p) > 40 and not p.lower().startswith(('filed', 'court', 'state of', 'appeal', 'supreme', 'district', 'county', 'judge', 'panel', 'date', 'before', 'argued', 'decided', 'counsel', 'attorney', 'prosecutor', 'defendant', 'plaintiff', 'appellant', 'appellee', 'respondent', 'petitioner', 'brief', 'syllabus', 'headnote')):
+                            if len(p) > 40 and not p.lower().startswith((
+                                'filed', 'court', 'state of', 'appeal', 'supreme', 'district', 'county', 'judge',
+                                'panel', 'date', 'before', 'argued', 'decided', 'counsel', 'attorney', 'prosecutor',
+                                'defendant', 'plaintiff', 'appellant', 'appellee', 'respondent', 'petitioner', 'brief',
+                                'syllabus', 'headnote')):
                                 summary = p
                                 break
                         if not summary:
@@ -75,6 +81,8 @@ def courtlistener_tool(query):
                 return "CourtListener: Error fetching data: Request timed out after multiple attempts. Please try again later."
         except Exception as e:
             return f"CourtListener: Error fetching data: {e}"
+
+# --- Index and Agent Setup ---
 def get_index_by_name(index_name, retries=5, delay=2):
     from time import sleep
     for attempt in range(retries):
@@ -87,8 +95,10 @@ def get_index_by_name(index_name, retries=5, delay=2):
             sleep(delay)
     print(f"[ERROR] Index '{index_name}' not found after {retries} retries.")
     return None
+
 vehicle_code_index = get_index_by_name("Vehicle Code Index")
 epa_index = get_index_by_name("EPA Index")
+
 vehicle_code_agent = AgentFactory.create(
     name="Vehicle Code Agent",
     description="Answers queries about the Vehicle Code dataset.",
@@ -107,7 +117,37 @@ team_agent = TeamAgentFactory.create(
     instructions="Extract insights from regulations, policies, and public health guidelines.",
     agents=[vehicle_code_agent, epa_agent]
 )
-console = Console()
+
+# --- Command Pattern Implementation ---
+class QueryCommand:
+    def execute(self, query, console):
+        raise NotImplementedError
+
+class CommercialCodeCommand(QueryCommand):
+    def __init__(self, agent):
+        self.agent = agent
+    def execute(self, query, console):
+        response = self.agent.run(query)
+        console.print(f"[green]Commercial Code Agent response:[/green]\n{response['data']['output']}")
+
+class EPACommand(QueryCommand):
+    def __init__(self, agent):
+        self.agent = agent
+    def execute(self, query, console):
+        response = self.agent.run(query)
+        console.print(f"[green]EPA Agent response:[/green]\n{response['data']['output']}")
+
+class FederalRegisterCommand(QueryCommand):
+    def execute(self, query, console):
+        result = federal_register_tool(query)
+        console.print(f"[green]Federal Register Tool response:[/green]\n{result}")
+
+class CourtListenerCommand(QueryCommand):
+    def execute(self, query, console):
+        result = courtlistener_tool(query)
+        console.print(f"[green]CourtListener Tool response:[/green]\n{result}")
+
+# --- Main Application ---
 def main():
     print("Slack token:", os.environ.get("SLACK_TOKEN"))
     print("Slack channel:", os.environ.get("SLACK_CHANNEL"))
@@ -115,28 +155,28 @@ def main():
     console = Console()
     facade = PolicyNavigatorFacade()  # Facade provides a unified interface to all agents/tools
     console.print("[bold green]Welcome to the Agentic RAG System![/bold green]")
+
+    # Command registry
+    commands = {
+        "1": CommercialCodeCommand(vehicle_code_agent),
+        "2": EPACommand(epa_agent),
+        "3": FederalRegisterCommand(),
+        "4": CourtListenerCommand(),
+    }
+
     while True:
         console.print("\n[bold yellow]Select query type:[/bold yellow]\n1. Commercial Code\n2. EPA\n3. Federal Register\n4. CourtListener\n5. Exit")
         choice = console.input("[bold blue]Enter choice (1-5): [/bold blue]")
         if choice == "5" or choice.lower() == "exit":
             break
+        if choice not in commands:
+            console.print("[red]Invalid choice. Please select 1-5.[/red]")
+            continue
         query = console.input("[bold blue]Enter your query: [/bold blue]")
         try:
-            if choice == "1":
-                response = vehicle_code_agent.run(query)
-                console.print(f"[green] Commercial Code Agent response:[/green]\n{response['data']['output']}")
-            elif choice == "2":
-                response = epa_agent.run(query)
-                console.print(f"[green]EPA Agent response:[/green]\n{response['data']['output']}")
-            elif choice == "3":
-                result = federal_register_tool(query)
-                console.print(f"[green]Federal Register Tool response:[/green]\n{result}")
-            elif choice == "4":
-                result = courtlistener_tool(query)
-                console.print(f"[green]CourtListener Tool response:[/green]\n{result}")
-            else:
-                console.print("[red]Invalid choice. Please select 1-5.[/red]")
+            commands[choice].execute(query, console)
         except Exception as e:
             console.print(f"[red]Error: {e}[/red]")
+
 if __name__ == "__main__":
     main() 
