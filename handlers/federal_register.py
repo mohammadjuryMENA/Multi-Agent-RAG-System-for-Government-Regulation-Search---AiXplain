@@ -1,10 +1,9 @@
 from handlers.base import QueryHandler
-from agents.rag_agent import RAGAgent
+from tools.federal_register_api import query_federal_register_api
 
 # Adapter for the Federal Register API
 class FederalRegisterHandler(QueryHandler):
-    def __init__(self):
-        self.agent = RAGAgent()
-
     def run(self, query: str) -> str:
-        return self.agent.handle_query(query) 
+        # Query the Federal Register API and return the result
+        resp = query_federal_register_api(query)
+        return resp 
