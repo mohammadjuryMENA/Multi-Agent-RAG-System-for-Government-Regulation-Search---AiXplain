@@ -35,6 +35,10 @@ This project implements a multi-agent RAG system that:
    ```bash
    python main.py
    ```
+5. **Run the Streamlit UI (optional):**
+   ```bash
+   streamlit run ui_streamlit.py
+   ```
 
 ---
 
@@ -58,30 +62,6 @@ This project implements a multi-agent RAG system that:
   - Federal Register and CourtListener APIs are integrated via Adapter-pattern handlers. Set API tokens in your environment.
 - **Adding New Tools/Agents:**
   - Implement a new handler class (see `handlers/`), register it in the main app or facade, and add to the CLI or UI.
-
----
-
-## 🔔 Slack Integration
-
-This agent can post every query and its response to a Slack channel for monitoring or collaboration.
-
-### How to Enable
-
-1. **Create a Slack App** and get a Bot Token (`SLACK_TOKEN`).
-2. **Invite the bot** to your desired channel and get the channel ID (`SLACK_CHANNEL`).
-3. **Set these environment variables** in your `.env` file:
-   ```
-   SLACK_TOKEN=xoxb-...
-   SLACK_CHANNEL=C12345678
-   ```
-4. When you run the agent, every query and its response will be posted to the specified Slack channel (if configured).
-
-### Example Slack Message
-
-```
-Query: What are the penalties for issuing a bad check?
-Response: Section 3310: ... (summary of penalties)
-```
 
 ---
 
@@ -135,6 +115,16 @@ CourtListener Tool response:
 CaseName (Citation): Summary...
 ```
 
+### Example 5: Uploading Multiple Documents
+**Input:**
+- Upload several PDF or TXT files via the UI sidebar, or specify a public URL.
+- Query: "Summarize the main compliance requirements from the uploaded documents."
+**Output:**
+```
+Uploaded Documents Agent response:
+(Summary of relevant content from all uploaded documents)
+```
+
 ---
 
 ## 🔮 Future Improvements
@@ -162,4 +152,4 @@ CaseName (Citation): Summary...
 - [Commercial Code](https://leginfo.legislature.ca.gov/faces/codesTOCSelected.xhtml?tocCode=COM&tocTitle=+Commercial+Code+-+COM)
 - [EPA Laws & Regulations](https://www.epa.gov/laws-regulations)
 - [Federal Register API](https://www.federalregister.gov/developers/documentation/api/v1)
-- [CourtListener API](https://www.courtlistener.com/api/rest-info/)
+- [CourtListener API](https://www.courtlistener.com/api/rest-info/) 
