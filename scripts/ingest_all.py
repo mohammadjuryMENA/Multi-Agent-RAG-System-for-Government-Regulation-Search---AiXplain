@@ -26,9 +26,9 @@ def get_index_by_name(index_name, retries=5, delay=2):
             print(f"[INFO] Index '{index_name}' not found, retrying in {delay} seconds...")
             time.sleep(delay)
     raise Exception(f"Index '{index_name}' not found after {retries} retries.")
-def ingest_commercial_code(csv_path):
-    index_name = "Commercial Code Index"
-    index_desc = "California Commercial Code sections"
+def ingest_vehicle_code(csv_path):
+    index_name = "Vehicle Code Index"
+    index_desc = "California Vehicle Code sections"
     df = pd.read_csv(csv_path)
     try:
         index = IndexFactory.create(name=index_name, description=index_desc)
@@ -49,23 +49,11 @@ def ingest_epa(url):
         index = get_index_by_name(index_name)
     index.upsert([Record(value=text, attributes={"url": url})])
     print(f"Upserted EPA summary to {index_name}")
-def ingest_commercial_code(csv_path):
-    index_name = "Commercial Code Index"
-    index_desc = "California Commercial Code sections"
-    df = pd.read_csv(csv_path)
-    try:
-        index = IndexFactory.create(name=index_name, description=index_desc)
-    except Exception:
-        index = get_index_by_name(index_name)
-    for _, row in df.iterrows():
-        index.upsert([Record(value=row['text'], attributes={"section": str(row['section']), "title": row['title']})])
-    print(f"Upserted {len(df)} records to {index_name}")
 if __name__ == "__main__":
     if not check_aixplain_api():
         exit(1)
     try:
-        ingest_commercial_code("data/commercial_code.csv")
+        ingest_vehicle_code("data/vehicle_code.csv")
         ingest_epa("https://www.epa.gov/laws-regulations/summary-clean-air-act")
-        ingest_commercial_code("data/commercial_code.csv")
     except Exception as e:
         print(f"[ERROR] Ingestion failed: {e}") 

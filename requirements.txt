@@ -4,4 +4,3 @@ pandas
 python-dotenv
 rich
 aixplain 
-selenium 
